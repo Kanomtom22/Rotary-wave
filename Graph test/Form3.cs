@@ -15,22 +15,32 @@ using OxyPlot.Legends;
 using OxyPlot.Series;
 using OxyPlot.WindowsForms;
 
+//lib for FFT
+using System.Numerics;
+using MathNet.Numerics;
+using MathNet.Numerics.IntegralTransforms;
+
+//lib for Attocube
+using Attocube.Net.Rpc;
+using Attocube.Net.Streaming;
+
+
 namespace Graph_test
 {
-    public partial class Form1 : Form
+    public partial class Form3 : Form
     {
         // create PlotView
         private PlotView plotView;
-        public Form1()
+
+        public Form3()
         {
             InitializeComponent();
-            
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void Form3_Load(object sender, EventArgs e)
         {
             // create arrays
-            double[] channel1 = 
+            double[] channel1 =
                 { 1.85E+00,1.85E+00   ,
 1.85E+00      ,
 1.84E+00      ,
@@ -1533,10 +1543,9 @@ namespace Graph_test
 -5.57E-01     ,
 -5.59E-01
 };
-
             // Check null
             bool[] validIndices = new bool[channel1.Length];
-            
+
             for (int i = 0; i < channel1.Length; i++)
             {
                 validIndices[i] = (channel1[i] != 0) && (channel2[i] != 0) && (channel3[i] != 0);
@@ -1580,86 +1589,81 @@ namespace Graph_test
 
             // declare Time
             int length = channel1_displacement.Length;
-                      // Enumerable.Range(start, count);
+            // Enumerable.Range(start, count);
             double[] t = Enumerable.Range(0, length).Select(i => (double)i / (length - 1) * 10).ToArray();
 
-            //Find the average pressure in each channel.
-            double[] meanChannel = new double[3];
-            meanChannel[0] = channel1_displacement.Average();
-            meanChannel[1] = channel2_displacement.Average();
-            meanChannel[2] = channel3_displacement.Average();
+            // Fourier Transform Function
+            Complex[] fftChannel1 = new Complex[channel1_displacement.Length];
+            Complex[] fftChannel2 = new Complex[channel2_displacement.Length];
+            Complex[] fftChannel3 = new Complex[channel3_displacement.Length];
 
-            //Subtract the average value
-            double[] channel1_plot = new double[channel1_displacement.Length];
-            double[] channel2_plot = new double[channel2_displacement.Length];
-            double[] channel3_plot = new double[channel3_displacement.Length];
-
-            for (int i = 0; i < channel1_displacement .Length; i++)
+            for (int i = 0; i < channel1_displacement.Length; i++)
             {
-                channel1_plot[i] = channel1_displacement[i] - meanChannel[0];
-                channel2_plot[i] = channel2_displacement[i] - meanChannel[1];
-                channel3_plot[i] = channel3_displacement[i] - meanChannel[2];
+                fftChannel1[i] = new Complex(channel1_displacement[i], 0);
+                fftChannel2[i] = new Complex(channel2_displacement[i], 0);
+                fftChannel3[i] = new Complex(channel3_displacement[i], 0);
             }
 
+            Fourier.Forward(fftChannel1, FourierOptions.NoScaling);
+            Fourier.Forward(fftChannel2, FourierOptions.NoScaling);
+            Fourier.Forward(fftChannel3, FourierOptions.NoScaling);
+
+            // Calculate the frequencies associated with the FFT
+            double fs = 1;
+            Complex[] frequencies = new Complex[fftChannel1.Length];
+
+            for (int i = 0; i < fftChannel1.Length; i++)
+            {
+                frequencies[i] = new Complex(fs * i / fftChannel1.Length, 0);
+            }
 
             // plotting
-            plotView.Model = null;
             plotView = new PlotView();
             plotView.Dock = DockStyle.Fill;
             Controls.Add(plotView);
 
-            // send parameter tp PlotModel
-            var model = CreatePlotModel(t, channel1_plot, channel2_plot, channel3_plot);
+            // send parameter to PlotModel
+            // convert double[] t to Complex[] t so that can fit in CreatePlotModel
+
+            var model = CreatePlotModel(frequencies, fftChannel1, fftChannel2, fftChannel3);
             plotView.Model = model;
-            plotView.Model.InvalidatePlot(false);
+            plotView.Model.InvalidatePlot(true);
         }
 
         // create graph function
-        private PlotModel CreatePlotModel(double[] x, double[] y1, double[] y2, double[] y3)
+        private PlotModel CreatePlotModel(Complex[] x, Complex[] y1, Complex[] y2, Complex[] y3)
         {
-            //x=time, y1=channel1, y2=channel2, y3=channel3
+            //x=frequencies, y1=channel1, y2=channel2, y3=channel3
 
-            var model = new PlotModel { Title = "Signal Graph" };
+            var model = new PlotModel { Title = "FFT Graph" };
             model.Legends.Add(new Legend()
             {
-                LegendPosition = LegendPosition.RightBottom,
+                LegendPosition = LegendPosition.RightTop,
             });
 
             // create lineseries for each channel
-            var line1 = new LineSeries { Title = "Channel 1" };
-            var line2 = new LineSeries { Title = "Channel 2" };
-            var line3 = new LineSeries { Title = "Channel 3" };
+            var line1 = new LineSeries { Title = "Channel 1", Color = OxyColor.FromRgb(0, 255, 0) }; //green color
+            var line2 = new LineSeries { Title = "Channel 2", Color = OxyColor.FromRgb(255, 255, 0) }; //yellow color
+            var line3 = new LineSeries { Title = "Channel 3", Color = OxyColor.FromRgb(255, 0, 0) }; //red color
 
-            // plot linegraph
+            // plot graph, Complex datatype have to use .Real
             for (int i = 0; i < x.Length; i++)
             {
-                line1.Points.Add(new DataPoint(x[i], y1[i]));
-                line2.Points.Add(new DataPoint(x[i], y2[i]));
-                line3.Points.Add(new DataPoint(x[i], y3[i]));
+                line1.Points.Add(new DataPoint(x[i].Real, y1[i].Real));
+                /*line2.Points.Add(new DataPoint(x[i].Real, y2[i].Real));
+                line3.Points.Add(new DataPoint(x[i].Real, y3[i].Real));*/
             }
 
             // add line graph in PlotModel
             model.Series.Add(line1);
-            model.Series.Add(line2);
-            model.Series.Add(line3);
+            /*model.Series.Add(line2);
+            model.Series.Add(line3);*/
 
             // positon & title
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = "Time (s)" }); // x axis
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Displacement (nm)" }); // y axis
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = "bgfjhyr (Hz)" }); // x axis
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Magnitude" }); // y axis
 
             return model;
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            Form2 FFT = new Form2();
-            FFT.Show();
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-            Form3 Rodial = new Form3();
-            Rodial.Show();
         }
     }
 }

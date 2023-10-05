@@ -20,6 +20,10 @@ using System.Numerics;
 using MathNet.Numerics;
 using MathNet.Numerics.IntegralTransforms;
 
+//lib for Attocube
+using Attocube.Net.Rpc;
+using Attocube.Net.Streaming;
+
 
 namespace Graph_test
 {
@@ -1605,7 +1609,7 @@ namespace Graph_test
             Fourier.Forward(fftChannel3, FourierOptions.NoScaling);
 
             // Calculate the frequencies associated with the FFT
-            double fs = 1.0;
+            double fs = 1;
             Complex[] frequencies = new Complex[fftChannel1.Length];
 
             for (int i = 0; i < fftChannel1.Length; i++)
@@ -1618,12 +1622,12 @@ namespace Graph_test
             plotView.Dock = DockStyle.Fill;
             Controls.Add(plotView);
 
-            // send parameter tp PlotModel
+            // send parameter to PlotModel
             // convert double[] t to Complex[] t so that can fit in CreatePlotModel
 
             var model = CreatePlotModel(frequencies, fftChannel1, fftChannel2, fftChannel3);
             plotView.Model = model;
-            plotView.Model.InvalidatePlot(true);
+            plotView.Model.InvalidatePlot(false);
         }
 
         // create graph function
@@ -1646,17 +1650,17 @@ namespace Graph_test
             for (int i = 0; i < x.Length; i++)
             {
                 line1.Points.Add(new DataPoint(x[i].Real, y1[i].Real));
-                line2.Points.Add(new DataPoint(x[i].Real, y2[i].Real));
-                line3.Points.Add(new DataPoint(x[i].Real, y3[i].Real));
+                /*line2.Points.Add(new DataPoint(x[i].Real, y2[i].Real));
+                line3.Points.Add(new DataPoint(x[i].Real, y3[i].Real));*/
             }
 
             // add line graph in PlotModel
             model.Series.Add(line1);
-            model.Series.Add(line2);
-            model.Series.Add(line3);
+            /*model.Series.Add(line2);
+            model.Series.Add(line3);*/
 
             // positon & title
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = "Frequency (Hz)" }); // x axis
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = "bgfjhyr (Hz)" }); // x axis
             model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Magnitude" }); // y axis
 
             return model;
